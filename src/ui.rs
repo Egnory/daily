@@ -142,6 +142,12 @@ impl App {
 		});
 
 		let weight_input = cx.new(|cx| InputState::new(window, cx).placeholder("WEIGHT"));
+		cx.defer_in(window, |this, window, cx| {
+			cx.focus_view(&this.weight_input, window);
+			this.weight_input.update(cx, |state, cx| {
+				state.select_all(window, cx);
+			});
+		});
 		let sleep_input = cx.new(|cx| TimeFieldState::new(window, cx).precision(TimePrecision::Minute));
 		let awake_input = cx.new(|cx| TimeFieldState::new(window, cx).precision(TimePrecision::Minute));
 		let spend_input = cx.new(|cx| InputState::new(window, cx).placeholder("SPEND"));
