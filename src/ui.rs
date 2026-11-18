@@ -35,7 +35,7 @@ macro_rules! input {
 
 macro_rules! time_input {
 	($cx:ident, $state:expr) => {
-		div().w(relative(0.8)).p(SMALL).shadow_md().rounded(SMALL).flex().items_center().justify_center().child(TimeField::new($state)).bg($cx.theme().background)
+		div().w(relative(0.8)).p(SMALL).shadow_md().rounded(SMALL).flex().items_center().justify_center().child(TimeField::new($state).border_0()).bg($cx.theme().background)
 	};
 }
 
