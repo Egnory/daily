@@ -55,6 +55,24 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
+      - name: Prepare binary
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "windows-x64" ]; then
+            cp "target/${{ matrix.target }}/release/daily.exe" daily.exe
+          else
+            cp "target/${{ matrix.target }}/release/daily" daily
+            chmod +x daily
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: |
+            daily
+            daily.exe
+          if-no-files-found: error
+
   tag:
     needs: build
     runs-on: ubuntu-latest
