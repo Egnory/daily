@@ -32,6 +32,8 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install Linux dependencies
         if: matrix.platform == 'linux-x64'
         run: |
