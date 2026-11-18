@@ -53,48 +53,22 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Prepare binary
-        shell: bash
-        run: |
-          name=$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)
-
-          if [ "${{ matrix.platform }}" = "windows-x64" ]; then
-            cp "target/${{ matrix.target }}/release/$name.exe" "$name.exe"
-          else
-            cp "target/${{ matrix.target }}/release/$name" "$name"
-            chmod +x "$name"
-          fi
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.platform }}
-          path: |
-            *.exe
-            daily
-          if-no-files-found: error
-
-  release:
+  tag:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.timestamp.outputs.timestamp }}
-          name: ${{ steps.timestamp.outputs.timestamp }}
-          body: |
-            Automatic build from commit ${{ github.sha }}
-
-            Branch: ${{ github.ref_name }}
-          draft: false
-          prerelease: true
-          files: dist/*
+      - name: Create tag
+        env:
+          TAG: ${{ steps.timestamp.outputs.timestamp }}
+        run: |
+          git init
+          git remote add origin "${{ github.server_url }}/${{ github.repository }}.git"
+          git fetch origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+          git tag "$TAG"
+          git push origin "$TAG"
