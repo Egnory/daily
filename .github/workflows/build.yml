@@ -58,6 +58,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
@@ -66,9 +70,5 @@ jobs:
         env:
           TAG: ${{ steps.timestamp.outputs.timestamp }}
         run: |
-          git init
-          git remote add origin "${{ github.server_url }}/${{ github.repository }}.git"
-          git fetch origin "${{ github.sha }}"
-          git checkout --detach FETCH_HEAD
-          git tag "$TAG"
+          git tag "$TAG" "$GITHUB_SHA"
           git push origin "$TAG"
