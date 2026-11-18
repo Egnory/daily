@@ -121,7 +121,7 @@ impl App {
 
 	pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
 		let mut data = DataFile::load();
-		let date = data.dates.keys().next_back().cloned().unwrap_or_else(Self::today);
+		let date = Self::today();
 
 		data.build(&date);
 
@@ -173,13 +173,22 @@ impl App {
 
 		let weight_sub = cx.subscribe_in(&app.weight_input, window, |this, state, event, _, cx| {
 			if matches!(event, InputEvent::Change) {
-				if let Ok(w) = state.read(cx).value().parse::<f64>() {
+				let value = state.read(cx).value();
+
+				if value.is_empty() {
+					this.data.dates.get_mut(&this.date).unwrap().weight = 0.;
+				} else if let Ok(w) = value.parse::<f64>() {
 					if (0.0..1000.0).contains(&w) {
 						this.data.dates.get_mut(&this.date).unwrap().weight = w;
-						this.data.save();
-						cx.notify();
+					} else {
+						return;
 					}
+				} else {
+					return;
 				}
+
+				this.data.save();
+				cx.notify();
 			}
 		});
 
@@ -249,7 +258,7 @@ impl Render for App {
 		let awake_avg = Self::avg(keys.iter().map(|d| self.data.dates[d].awake));
 		let spend_avg = Self::avg(keys.iter().map(|d| self.data.dates[d].spend.iter().sum::<f64>()));
 
-		let weight: Vec<_> = keys.iter().map(|d| (d.clone(), self.data.dates[d].weight)).collect();
+		let weight: Vec<_> = keys.iter().map(|d| (d.clone(), if self.data.dates[d].weight == 0. { weight_avg } else { self.data.dates[d].weight })).collect();
 		let sleep: Vec<_> = keys
 			.iter()
 			.map(|d| {

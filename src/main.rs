@@ -1,3 +1,4 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 use gpui_kit::{
 	AppContext, WindowBounds, WindowOptions, application,
 	component::{Theme, ThemeConfig, ThemeMode},
