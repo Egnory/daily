@@ -73,22 +73,30 @@ jobs:
             daily.exe
           if-no-files-found: error
 
-  tag:
+  release:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          ref: ${{ github.sha }}
+          path: dist
+          merge-multiple: true
 
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
 
-      - name: Create tag
-        env:
-          TAG: ${{ steps.timestamp.outputs.timestamp }}
-        run: |
-          git tag "$TAG" "$GITHUB_SHA"
-          git push origin "$TAG"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.timestamp.outputs.timestamp }}
+          name: ${{ steps.timestamp.outputs.timestamp }}
+          target_commitish: ${{ github.sha }}
+          body: |
+            Automatic build from commit ${{ github.sha }}
+
+            Branch: ${{ github.ref_name }}
+          prerelease: true
+          files: |
+            dist/daily
+            dist/daily.exe
