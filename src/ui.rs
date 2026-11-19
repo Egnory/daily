@@ -119,25 +119,36 @@ impl App {
 		self.offset_input.update(cx, |s, cx| s.set_value(self.offset.to_string(), window, cx));
 	}
 
+	fn filter_numeric_input(value: &str, allow_space: bool) -> String {
+		let mut has_dot = false;
+		let mut result = String::new();
+
+		for c in value.chars() {
+			if c.is_ascii_digit() || (allow_space && c == ' ') {
+				result.push(c);
+			} else if c == '.' && !has_dot {
+				has_dot = true;
+				result.push(c);
+			}
+		}
+
+		result
+	}
+
 	pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
 		let mut data = DataFile::load();
 		let date = Self::today();
-
 		data.build(&date);
-
 		let offset = Self::offset_for_date(&data, &date);
 		data.configs.length = data.configs.length.clamp(1, data.dates.len().saturating_sub(offset).max(1));
 
 		let calendar = cx.new(|cx| {
 			let min_date = data.dates.keys().next().and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()).unwrap_or_else(|| Local::now().naive_local().date());
 			let max_date = Local::now().naive_local().date();
-
 			let mut calendar = CalendarState::new(window, cx).disabled_matcher(Matcher::custom(move |date| *date < min_date || *date > max_date)).year_range((min_date.year(), max_date.year() + 1));
-
 			if let Ok(d) = NaiveDate::parse_from_str(&date, "%Y-%m-%d") {
 				calendar.set_date(d, window, cx);
 			}
-
 			calendar
 		});
 
@@ -153,6 +164,12 @@ impl App {
 		let spend_input = cx.new(|cx| InputState::new(window, cx).placeholder("SPEND"));
 		let length_input = cx.new(|cx| InputState::new(window, cx).placeholder("LENGTH").default_value(&data.configs.length.to_string()));
 		let offset_input = cx.new(|cx| InputState::new(window, cx).placeholder("OFFSET").default_value(&offset.to_string()));
+		length_input.update(cx, |state, cx| {
+			state.focus_handle(cx).tab_stop(false);
+		});
+		offset_input.update(cx, |state, cx| {
+			state.focus_handle(cx).tab_stop(false);
+		});
 
 		let mut app = Self { data, date, offset, calendar, weight_input, sleep_input, awake_input, spend_input, length_input, offset_input, _subscriptions: Vec::new() };
 
@@ -177,43 +194,59 @@ impl App {
 			}
 		});
 
-		let weight_sub = cx.subscribe_in(&app.weight_input, window, |this, state, event, _, cx| {
-			if matches!(event, InputEvent::Change) {
-				let value = state.read(cx).value();
+		let weight_sub = cx.subscribe_in(&app.weight_input, window, |this, state, event, window, cx| {
+			if !matches!(event, InputEvent::Change) {
+				return;
+			}
 
-				if value.is_empty() {
-					this.data.dates.get_mut(&this.date).unwrap().weight = 0.;
-				} else if let Ok(w) = value.parse::<f64>() {
-					if (0.0..1000.0).contains(&w) {
-						this.data.dates.get_mut(&this.date).unwrap().weight = w;
-					} else {
-						return;
-					}
-				} else {
+			let value = state.read(cx).value().to_string();
+			let filtered = Self::filter_numeric_input(&value, false);
+
+			if filtered != value {
+				this.weight_input.update(cx, |s, cx| s.set_value(filtered.clone(), window, cx));
+			}
+
+			if filtered.is_empty() {
+				this.data.dates.get_mut(&this.date).unwrap().weight = 0.;
+			} else {
+				let Ok(w) = filtered.parse::<f64>() else {
+					return;
+				};
+
+				if !(0.0..1000.0).contains(&w) {
 					return;
 				}
 
-				this.data.save();
-				cx.notify();
+				this.data.dates.get_mut(&this.date).unwrap().weight = w;
 			}
+
+			this.data.save();
+			cx.notify();
 		});
 
 		let sleep_sub = time_subscription!(cx, window, app, sleep_input, sleep);
 		let awake_sub = time_subscription!(cx, window, app, awake_input, awake);
 
-		let spend_sub = cx.subscribe_in(&app.spend_input, window, |this, state, event, _, cx| {
-			if matches!(event, InputEvent::Change) {
-				let v = state.read(cx).value().to_string();
-
-				if v.ends_with('.') || v.ends_with(".0") {
-					return;
-				}
-
-				this.data.dates.get_mut(&this.date).unwrap().spend = v.split_whitespace().filter_map(|s| s.parse::<f64>().ok()).filter(|n| *n >= 0.0).collect();
-
-				this.data.save();
-				cx.notify();
+		let spend_sub = cx.subscribe_in(&app.spend_input, window, |this, state, event, window, cx| {
+			if !matches!(event, InputEvent::Change) {
+				return;
 			}
+
+			let value = state.read(cx).value().to_string();
+			let filtered = Self::filter_numeric_input(&value, true);
+
+			if filtered != value {
+				this.spend_input.update(cx, |s, cx| s.set_value(filtered.clone(), window, cx));
+			}
+
+			if filtered.ends_with('.') {
+				return;
+			}
+
+			this.data.dates.get_mut(&this.date).unwrap().spend = filtered.split_whitespace().filter_map(|s| s.parse::<f64>().ok()).filter(|n| *n >= 0.0).collect();
+
+			this.data.save();
+			cx.notify();
 		});
 
 		let length_sub = cx.subscribe_in(&app.length_input, window, |this, state, event, window, cx| {
