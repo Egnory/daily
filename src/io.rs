@@ -25,14 +25,30 @@ pub struct DataFile {
 	path: PathBuf,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ThemeConfig {
+	pub mode: String,
+	pub light: String,
+	pub dark: String,
+}
+
+impl Default for ThemeConfig {
+	fn default() -> Self {
+		Self { mode: "system".into(), light: "ayu".into(), dark: "nord".into() }
+	}
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Configs {
 	pub length: usize,
+	#[serde(default)]
+	pub theme: ThemeConfig,
 }
 
 impl Default for Configs {
 	fn default() -> Self {
-		Self { length: 30 }
+		Self { length: 30, theme: ThemeConfig::default() }
 	}
 }
 
@@ -81,8 +97,12 @@ impl DataFile {
 		let path = Self::resolve_path().expect("无法初始化 daily.json");
 		eprintln!("Loading daily.json: {}", path.display());
 		let json = fs::read_to_string(&path).unwrap_or_default();
+		let should_save = json.trim().is_empty() || serde_json::from_str::<serde_json::Value>(&json).is_ok_and(|value| value.pointer("/configs/theme").is_none());
 		let mut data: Self = serde_json::from_str(&json).unwrap_or_else(|_| Self { dates: BTreeMap::new(), configs: Configs::default(), path: PathBuf::new() });
 		data.path = path;
+		if should_save {
+			data.save();
+		}
 		data
 	}
 

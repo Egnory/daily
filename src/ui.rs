@@ -29,7 +29,7 @@ macro_rules! time_subscription {
 
 macro_rules! input {
 	($cx:ident, $state:expr) => {
-		div().w(relative(0.8)).p(SMALL).shadow_md().rounded(SMALL).flex().items_center().justify_center().child(Input::new($state).appearance(false).w_full().text_center()).bg($cx.theme().background)
+		div().w(relative(0.8)).p(SMALL).shadow_md().rounded(SMALL).flex().items_center().justify_center().child(Input::new($state).appearance(false).w_full().text_center().text_color($cx.theme().foreground)).bg($cx.theme().background)
 	};
 }
 
@@ -212,11 +212,9 @@ impl App {
 				let Ok(w) = filtered.parse::<f64>() else {
 					return;
 				};
-
 				if !(0.0..1000.0).contains(&w) {
 					return;
 				}
-
 				this.data.dates.get_mut(&this.date).unwrap().weight = w;
 			}
 
@@ -318,6 +316,7 @@ impl Render for App {
 			.p(MIDLE)
 			.size_full()
 			.bg(cx.theme().background)
+			.text_color(cx.theme().foreground)
 			.font_family("Maple Mono NF")
 			.child(
 				div()
