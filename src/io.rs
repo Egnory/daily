@@ -79,12 +79,10 @@ impl DataFile {
 
 	pub fn load() -> Self {
 		let path = Self::resolve_path().expect("无法初始化 daily.json");
+		eprintln!("Loading daily.json: {}", path.display());
 		let json = fs::read_to_string(&path).unwrap_or_default();
-
 		let mut data: Self = serde_json::from_str(&json).unwrap_or_else(|_| Self { dates: BTreeMap::new(), configs: Configs::default(), path: PathBuf::new() });
-
 		data.path = path;
-
 		data
 	}
 

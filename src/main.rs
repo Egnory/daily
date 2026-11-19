@@ -53,27 +53,40 @@ fn main() {
 			theme.dark_theme = set("Dark", ThemeMode::Dark, &theme::NORD_DARK).into();
 		});
 
-		let display = cx.primary_display().expect("No display found");
-		let display_size = display.bounds().size;
-		let window_size = size(display_size.width * 0.5, display_size.height);
+		cx.spawn(async move |cx| {
+			cx.background_executor().timer(std::time::Duration::from_millis(100)).await;
 
-		open_window(WindowOptions { titlebar: None, window_bounds: Some(WindowBounds::centered(window_size, cx)), window_min_size: Some(window_size), ..Default::default() }, cx, |window, cx| {
-			Theme::sync_system_appearance(Some(window), cx);
-			Theme::update(cx, |theme| {
-				theme.colors.chart_1 = theme.colors.accent.opacity(0.2);
-			});
+			cx.update(|cx| {
+				let display = cx.primary_display().or_else(|| cx.displays().into_iter().next());
 
-			window
-				.observe_window_appearance(|window, cx| {
+				let Some(display) = display else {
+					eprintln!("No display found after Wayland initialization");
+					return;
+				};
+
+				let display_size = display.bounds().size;
+				let window_size = size(display_size.width * 0.5, display_size.height);
+
+				open_window(WindowOptions { titlebar: None, window_bounds: Some(WindowBounds::centered(window_size, cx)), window_min_size: Some(window_size), ..Default::default() }, cx, |window, cx| {
 					Theme::sync_system_appearance(Some(window), cx);
 					Theme::update(cx, |theme| {
 						theme.colors.chart_1 = theme.colors.accent.opacity(0.2);
 					});
-				})
-				.detach();
 
-			cx.new(|ctx| ui::App::new(window, ctx))
+					window
+						.observe_window_appearance(|window, cx| {
+							Theme::sync_system_appearance(Some(window), cx);
+							Theme::update(cx, |theme| {
+								theme.colors.chart_1 = theme.colors.accent.opacity(0.2);
+							});
+						})
+						.detach();
+
+					cx.new(|ctx| ui::App::new(window, ctx))
+				})
+				.expect("Failed to open window");
+			});
 		})
-		.expect("Failed to open window");
+		.detach();
 	});
 }
