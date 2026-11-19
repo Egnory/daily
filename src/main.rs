@@ -50,6 +50,15 @@ fn set(name: &str, mode: ThemeMode, colors: &theme::Colors) -> ThemeConfig {
 	config
 }
 
+fn update_theme(window: Option<&mut gpui_kit::Window>, cx: &mut gpui_kit::App, system_mode: bool) {
+	if system_mode {
+		Theme::sync_system_appearance(window, cx);
+	}
+	Theme::update(cx, |theme| {
+		theme.colors.chart_1 = theme.colors.accent.opacity(0.2);
+	});
+}
+
 fn main() {
 	application().run(|cx| {
 		init(cx);
@@ -61,9 +70,6 @@ fn main() {
 		Theme::update(cx, |theme| {
 			theme.light_theme = set(&theme_config.light, ThemeMode::Light, &theme::get(&theme_config.light)).into();
 			theme.dark_theme = set(&theme_config.dark, ThemeMode::Dark, &theme::get(&theme_config.dark)).into();
-			if !system_mode {
-				theme.mode = if theme_config.mode == "dark" { ThemeMode::Dark } else { ThemeMode::Light };
-			}
 		});
 
 		cx.spawn(async move |cx| {
@@ -81,20 +87,13 @@ fn main() {
 				let window_size = size(display_size.width * 0.5, display_size.height);
 
 				cx.open_window(WindowOptions { titlebar: None, window_bounds: Some(WindowBounds::centered(window_size, cx)), window_min_size: Some(window_size), ..Default::default() }, |window, cx| {
-					Theme::sync_system_appearance(Some(window), cx);
-					Theme::update(cx, |theme| {
-						theme.colors.chart_1 = theme.colors.accent.opacity(0.2);
-					});
-
-					window
-						.observe_window_appearance(|window, cx| {
-							Theme::sync_system_appearance(Some(window), cx);
-							Theme::update(cx, |theme| {
-								theme.colors.chart_1 = theme.colors.accent.opacity(0.2);
-							});
-						})
-						.detach();
-
+					if system_mode {
+						update_theme(Some(window), cx, true);
+						window.observe_window_appearance(|window, cx| update_theme(Some(window), cx, true)).detach();
+					} else {
+						Theme::change(if theme_config.mode == "dark" { ThemeMode::Dark } else { ThemeMode::Light }, Some(window), cx);
+						update_theme(Some(window), cx, false);
+					}
 					cx.new(|ctx| ui::App::new(window, ctx))
 				})
 				.expect("Failed to open window");
