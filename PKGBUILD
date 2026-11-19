@@ -4,7 +4,7 @@ pkgrel=1
 arch=('x86_64')
 url="https://github.com/Egnory/daily"
 license=('unknown')
-options=('!lto')
+options=('!lto' '!debug')
 
 depends=(
     'gcc-libs'
