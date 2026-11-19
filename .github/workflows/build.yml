@@ -50,6 +50,7 @@ jobs:
                 git \
                 rust \
                 pkgconf \
+                fontconfig\
                 libxcb \
                 libxkbcommon \
                 libxkbcommon-x11

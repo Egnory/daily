@@ -9,6 +9,7 @@ options=('!lto')
 depends=(
     'gcc-libs'
     'glibc'
+    'fontconfig'
     'libxcb'
     'libxkbcommon'
     'libxkbcommon-x11'
