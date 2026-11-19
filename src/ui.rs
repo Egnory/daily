@@ -16,6 +16,24 @@ const LARGE: Pixels = px(RATIO * 3.);
 const MIDLE: Pixels = px(RATIO * 2.);
 const SMALL: Pixels = px(RATIO);
 
+macro_rules! clamp_length {
+	($dates:expr, $length:expr, $offset:expr) => {
+		$length.clamp(1, $dates.len().saturating_sub($offset).max(1))
+	};
+}
+
+macro_rules! set_value {
+	($this:expr, $input:ident, $val:expr, $window:expr, $cx:expr) => {
+		$this.$input.update($cx, |s, cx| s.set_value($val, $window, cx))
+	};
+}
+
+macro_rules! set_time {
+	($this:expr, $input:ident, $val:expr, $window:expr, $cx:expr) => {
+		$this.$input.update($cx, |s, cx| s.set_time($val, $window, cx))
+	};
+}
+
 macro_rules! time_subscription {
 	($cx:ident, $window:ident, $app:ident, $input:ident, $field:ident) => {
 		$cx.subscribe_in(&$app.$input, $window, |this, _, event, _, cx| {
@@ -89,12 +107,12 @@ impl App {
 	}
 
 	fn num_to_time(value: f64) -> String {
-		let value = value as i64 + if value < 0. { 1440 } else { 0 };
-		format!("{:02}:{:02}", value / 60, value % 60)
+		let m = (value as i64).rem_euclid(1440);
+		format!("{:02}:{:02}", m / 60, m % 60)
 	}
 
 	fn check_sleep(sleep: f64) -> f64 {
-		sleep - if sleep < 720. { 0. } else { 1440. }
+		if sleep < 720. { sleep } else { sleep - 1440. }
 	}
 
 	fn avg(values: impl Iterator<Item = f64>) -> f64 {
@@ -111,12 +129,12 @@ impl App {
 			NaiveTime::from_hms_opt(value / 60, value % 60, 0).unwrap()
 		};
 
-		self.weight_input.update(cx, |s, cx| s.set_value(weight.to_string(), window, cx));
-		self.sleep_input.update(cx, |s, cx| s.set_time(time(sleep), window, cx));
-		self.awake_input.update(cx, |s, cx| s.set_time(time(awake), window, cx));
-		self.spend_input.update(cx, |s, cx| s.set_value(spend, window, cx));
-		self.length_input.update(cx, |s, cx| s.set_value(self.data.configs.length.to_string(), window, cx));
-		self.offset_input.update(cx, |s, cx| s.set_value(self.offset.to_string(), window, cx));
+		set_value!(self, weight_input, weight.to_string(), window, cx);
+		set_time!(self, sleep_input, time(sleep), window, cx);
+		set_time!(self, awake_input, time(awake), window, cx);
+		set_value!(self, spend_input, spend, window, cx);
+		set_value!(self, length_input, self.data.configs.length.to_string(), window, cx);
+		set_value!(self, offset_input, self.offset.to_string(), window, cx);
 	}
 
 	fn filter_numeric_input(value: &str, allow_space: bool) -> String {
@@ -140,7 +158,7 @@ impl App {
 		let date = Self::today();
 		data.build(&date);
 		let offset = Self::offset_for_date(&data, &date);
-		data.configs.length = data.configs.length.clamp(1, data.dates.len().saturating_sub(offset).max(1));
+		data.configs.length = clamp_length!(data.dates, data.configs.length, offset);
 
 		let calendar = cx.new(|cx| {
 			let min_date = data.dates.keys().next().and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()).unwrap_or_else(|| Local::now().naive_local().date());
@@ -186,7 +204,7 @@ impl App {
 				this.data.build(&date);
 				this.date = date;
 				this.offset = Self::offset_for_date(&this.data, &this.date);
-				this.data.configs.length = this.data.configs.length.clamp(1, this.data.dates.len().saturating_sub(this.offset).max(1));
+				this.data.configs.length = clamp_length!(this.data.dates, this.data.configs.length, this.offset);
 
 				this.sync_inputs(window, cx);
 				this.data.save();
@@ -203,7 +221,7 @@ impl App {
 			let filtered = Self::filter_numeric_input(&value, false);
 
 			if filtered != value {
-				this.weight_input.update(cx, |s, cx| s.set_value(filtered.clone(), window, cx));
+				set_value!(this, weight_input, filtered.clone(), window, cx);
 			}
 
 			if filtered.is_empty() {
@@ -234,14 +252,14 @@ impl App {
 			let filtered = Self::filter_numeric_input(&value, true);
 
 			if filtered != value {
-				this.spend_input.update(cx, |s, cx| s.set_value(filtered.clone(), window, cx));
+				set_value!(this, spend_input, filtered.clone(), window, cx);
 			}
 
 			if filtered.ends_with('.') {
 				return;
 			}
 
-			this.data.dates.get_mut(&this.date).unwrap().spend = filtered.split_whitespace().filter_map(|s| s.parse::<f64>().ok()).filter(|n| *n >= 0.0).collect();
+			this.data.dates.get_mut(&this.date).unwrap().spend = filtered.split_whitespace().filter_map(|s| s.parse::<f64>().ok()).collect();
 
 			this.data.save();
 			cx.notify();
@@ -250,11 +268,8 @@ impl App {
 		let length_sub = cx.subscribe_in(&app.length_input, window, |this, state, event, window, cx| {
 			if matches!(event, InputEvent::Change) {
 				if let Ok(len) = state.read(cx).value().parse::<usize>() {
-					this.data.configs.length = len.clamp(1, this.data.dates.len().saturating_sub(this.offset).max(1));
-
-					let value = this.data.configs.length.to_string();
-					this.length_input.update(cx, |s, cx| s.set_value(value, window, cx));
-
+					this.data.configs.length = clamp_length!(this.data.dates, len, this.offset);
+					set_value!(this, length_input, this.data.configs.length.to_string(), window, cx);
 					this.data.save();
 					cx.notify();
 				}
@@ -265,12 +280,9 @@ impl App {
 			if matches!(event, InputEvent::Change) {
 				if let Ok(offset) = state.read(cx).value().parse::<usize>() {
 					this.offset = offset.min(this.data.dates.len().saturating_sub(1));
-					this.data.configs.length = this.data.configs.length.clamp(1, this.data.dates.len().saturating_sub(this.offset).max(1));
-
-					let (length, offset) = (this.data.configs.length.to_string(), this.offset.to_string());
-					this.length_input.update(cx, |s, cx| s.set_value(length, window, cx));
-					this.offset_input.update(cx, |s, cx| s.set_value(offset, window, cx));
-
+					this.data.configs.length = clamp_length!(this.data.dates, this.data.configs.length, this.offset);
+					set_value!(this, length_input, this.data.configs.length.to_string(), window, cx);
+					set_value!(this, offset_input, this.offset.to_string(), window, cx);
 					this.data.save();
 					cx.notify();
 				}

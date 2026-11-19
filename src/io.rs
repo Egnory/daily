@@ -16,7 +16,7 @@ pub struct DayData {
 	pub spend: Vec<f64>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct DataFile {
 	pub dates: BTreeMap<String, DayData>,
 	pub configs: Configs,
@@ -97,8 +97,8 @@ impl DataFile {
 		let path = Self::resolve_path().expect("无法初始化 daily.json");
 		eprintln!("Loading daily.json: {}", path.display());
 		let json = fs::read_to_string(&path).unwrap_or_default();
-		let should_save = json.trim().is_empty() || serde_json::from_str::<serde_json::Value>(&json).is_ok_and(|value| value.pointer("/configs/theme").is_none());
-		let mut data: Self = serde_json::from_str(&json).unwrap_or_else(|_| Self { dates: BTreeMap::new(), configs: Configs::default(), path: PathBuf::new() });
+		let should_save = json.trim().is_empty() || serde_json::from_str::<serde_json::Value>(&json).map_or(false, |value| value.pointer("/configs/theme").is_none());
+		let mut data: Self = serde_json::from_str(&json).unwrap_or_default();
 		data.path = path;
 		if should_save {
 			data.save();
@@ -111,8 +111,6 @@ impl DataFile {
 	}
 
 	pub fn build(&mut self, date: &str) {
-		if date >= "1970-01-01" && !self.dates.contains_key(date) {
-			self.dates.insert(date.to_owned(), DayData::default());
-		}
+		self.dates.entry(date.to_owned()).or_default();
 	}
 }
