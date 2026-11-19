@@ -29,7 +29,7 @@ macro_rules! time_subscription {
 
 macro_rules! input {
 	($cx:ident, $state:expr) => {
-		div().w(relative(0.8)).p(SMALL).shadow_md().rounded(SMALL).flex().items_center().justify_center().child(Input::new($state).appearance(false).w_full().text_center().text_size(MIDLE)).bg($cx.theme().background)
+		div().w(relative(0.8)).p(SMALL).shadow_md().rounded(SMALL).flex().items_center().justify_center().child(Input::new($state).appearance(false).w_full().text_center()).bg($cx.theme().background)
 	};
 }
 
@@ -41,7 +41,7 @@ macro_rules! time_input {
 
 macro_rules! data_input {
 	($label:expr, $average:expr, $input:expr) => {
-		div().w_full().flex().flex_col().items_center().gap_2().child(div().w_full().text_center().text_size(MIDLE).child(format!("{} {}", $label, $average))).child($input)
+		div().w_full().flex().flex_col().items_center().gap_2().child(div().w_full().text_center().child(format!("{} {}", $label, $average))).child($input)
 	};
 }
 
