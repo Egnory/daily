@@ -32,7 +32,7 @@ build() {
 package() {
     cd "$srcdir/daily"
 
-    install -Dm755 target/release/daily \
+    install -Dm755 "${CARGO_TARGET_DIR:-target}/release/daily" \
         "$pkgdir/usr/bin/daily"
 
     install -Dm644 app.ico \
