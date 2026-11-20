@@ -93,7 +93,7 @@ fn main() {
 				let display_size = display.bounds().size;
 				let window_size = size(display_size.width * 0.5, display_size.height);
 
-				cx.open_window(WindowOptions { titlebar: None, window_bounds: Some(WindowBounds::centered(window_size, cx)), window_min_size: Some(window_size), ..Default::default() }, |window, cx| {
+				gpui_kit::open_window(WindowOptions { titlebar: None, window_bounds: Some(WindowBounds::centered(window_size, cx)), window_min_size: Some(window_size), ..Default::default() }, cx, |window, cx| {
 					if theme_config.mode == "system" {
 						apply_theme(Some(window), cx, None);
 						window.observe_window_appearance(|window, cx| apply_theme(Some(window), cx, None)).detach();

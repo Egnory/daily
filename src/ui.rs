@@ -142,7 +142,10 @@ impl App {
 		let mut result = String::new();
 
 		for c in value.chars() {
-			if c.is_ascii_digit() || (allow_space && c == ' ') {
+			if c.is_ascii_digit() {
+				result.push(c);
+			} else if allow_space && c == ' ' {
+				has_dot = false;
 				result.push(c);
 			} else if c == '.' && !has_dot {
 				has_dot = true;
