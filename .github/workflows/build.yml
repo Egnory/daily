@@ -98,7 +98,6 @@ jobs:
           body: |
             Automatic build from commit ${{ github.sha }}
             Branch: ${{ github.ref_name }}
-          prerelease: true
           files: |
             dist/daily.exe
             dist/*.pkg.tar.zst
